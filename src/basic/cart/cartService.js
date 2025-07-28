@@ -1,6 +1,6 @@
 /**
- * 장바구니 관련 서비스 함수들
- * 장바구니 계산, 포인트 렌더링, 재고 관리 등의 기능을 제공
+ * 장바구니 서비스 함수들
+ * 장바구니 계산, 포인트 계산 등의 비즈니스 로직 처리
  */
 import {
   BASE_POINTS_RATE,
@@ -16,6 +16,8 @@ import {
   TUESDAY_DISCOUNT_RATE,
   TUESDAY_POINTS_MULTIPLIER,
 } from "../constants/productConstants.js";
+import { $ } from "../utils/$.js";
+import { calculateCartTotals, extractCartItemInfo } from "../utils/businessLogic.js";
 
 /**
  * 장바구니 총액 계산
@@ -25,66 +27,26 @@ import {
  * @returns {Object} 계산 결과 { totalAmount, itemCount, discountRate }
  */
 export function calculateCartTotal(cartItems, productList, appState) {
-  let totalAmount = 0;
-  let itemCount = 0;
-  let subtotal = 0;
-  const itemDiscounts = [];
+  // 장바구니 아이템 정보 추출
+  const cartItemInfo = extractCartItemInfo(cartItems);
 
-  // 각 장바구니 아이템 계산
-  for (let i = 0; i < cartItems.length; i++) {
-    const cartItem = cartItems[i];
-    const product = findProductById(productList, cartItem.id);
-
-    if (!product) continue;
-
-    const quantity = parseInt(cartItem.querySelector(".quantity-number").textContent);
-    const itemTotal = product.val * quantity;
-
-    itemCount += quantity;
-    subtotal += itemTotal;
-
-    // 개별 상품 할인 적용 (10개 이상)
-    if (quantity >= 10) {
-      const discountRate = DISCOUNT_RATES[product.id] || 0;
-      if (discountRate > 0) {
-        itemDiscounts.push({
-          name: product.name,
-          discount: discountRate * 100,
-        });
-        totalAmount += itemTotal * (1 - discountRate);
-      } else {
-        totalAmount += itemTotal;
-      }
-    } else {
-      totalAmount += itemTotal;
-    }
-  }
-
-  // 대량구매 할인 적용 (30개 이상)
-  let discountRate = 0;
-  if (itemCount >= BULK_DISCOUNT_THRESHOLD) {
-    totalAmount = subtotal * (1 - BULK_DISCOUNT_RATE);
-    discountRate = BULK_DISCOUNT_RATE;
-  } else {
-    discountRate = (subtotal - totalAmount) / subtotal;
-  }
-
-  // 화요일 할인 적용
-  const today = new Date();
-  const isTuesday = today.getDay() === 2;
-  if (isTuesday && totalAmount > 0) {
-    totalAmount = totalAmount * (1 - TUESDAY_DISCOUNT_RATE);
-    discountRate = 1 - totalAmount / subtotal;
-  }
-
-  return {
-    totalAmount: Math.round(totalAmount),
-    itemCount,
-    discountRate,
-    subtotal,
-    itemDiscounts,
-    isTuesday,
+  // 계산 옵션 설정
+  const options = {
+    discountRates: DISCOUNT_RATES,
+    bulkThreshold: BULK_DISCOUNT_THRESHOLD,
+    bulkDiscountRate: BULK_DISCOUNT_RATE,
+    tuesdayDiscountRate: TUESDAY_DISCOUNT_RATE,
+    basePointsRate: BASE_POINTS_RATE,
+    tuesdayMultiplier: TUESDAY_POINTS_MULTIPLIER,
+    setBonuses: {
+      keyboardMouse: SET_BONUS_POINTS,
+      fullSet: FULL_SET_BONUS_POINTS,
+    },
+    quantityBonuses: QUANTITY_BONUS_POINTS,
   };
+
+  // 순수 함수를 사용하여 계산
+  return calculateCartTotals(cartItemInfo, productList, options);
 }
 
 /**
@@ -95,7 +57,7 @@ export function calculateCartTotal(cartItems, productList, appState) {
  * @param {number} totalAmount - 총 결제 금액
  */
 export function renderBonusPoints(cartItems, productList, appState, totalAmount) {
-  const loyaltyPointsDiv = document.getElementById("loyalty-points");
+  const loyaltyPointsDiv = $("#loyalty-points");
 
   if (!loyaltyPointsDiv) return;
 

@@ -10,6 +10,8 @@ import {
   SUGGEST_SALE_RATE,
 } from "../constants/productConstants.js";
 import { updateSelectOptions } from "../product/productUI.js";
+import { delayedExecution, periodicExecution } from "../utils/asyncManager.js";
+import { showPromotion } from "../utils/notificationManager.js";
 
 /**
  * 프로모션 시작
@@ -32,8 +34,8 @@ export function startPromotions(productList, appState) {
 export function startLightningSale(productList, appState) {
   const lightningDelay = Math.random() * 10000;
 
-  setTimeout(() => {
-    setInterval(() => {
+  delayedExecution(() => {
+    periodicExecution(() => {
       const luckyIndex = Math.floor(Math.random() * productList.length);
       const luckyItem = productList[luckyIndex];
 
@@ -41,7 +43,9 @@ export function startLightningSale(productList, appState) {
         luckyItem.val = Math.round(luckyItem.originalVal * (1 - LIGHTNING_SALE_RATE));
         luckyItem.onSale = true;
 
-        alert(`⚡번개세일! ${luckyItem.name}이(가) ${LIGHTNING_SALE_RATE * 100}% 할인 중입니다!`);
+        showPromotion(
+          `⚡번개세일! ${luckyItem.name}이(가) ${LIGHTNING_SALE_RATE * 100}% 할인 중입니다!`,
+        );
 
         updateSelectOptions(appState.productSelector, productList);
         updatePricesInCart(Array.from(appState.cartDisplay.children), productList);
@@ -58,15 +62,15 @@ export function startLightningSale(productList, appState) {
 export function startSuggestSale(productList, appState) {
   const suggestDelay = Math.random() * 20000;
 
-  setTimeout(() => {
-    setInterval(() => {
+  delayedExecution(() => {
+    periodicExecution(() => {
       if (appState.cartDisplay.children.length === 0) return;
 
       if (appState.lastSelectedProduct) {
         const suggestProduct = findSuggestProduct(productList, appState.lastSelectedProduct);
 
         if (suggestProduct) {
-          alert(
+          showPromotion(
             `💝 ${suggestProduct.name}은(는) 어떠세요? 지금 구매하시면 ${SUGGEST_SALE_RATE * 100}% 추가 할인!`,
           );
 
