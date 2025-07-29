@@ -5,6 +5,7 @@
 import { calculateBonusPoints, calculateCartTotal } from "../services/cartService.js";
 import { updateStockInfo } from "../ui/cartUI.js";
 import { updateBonusPoints, updateCartUI, updateOrderSummary } from "../ui/eventUI.js";
+import { $, clearSelectorCache } from "../utils/$.js";
 import { calculateCartTotals, extractCartItemInfo } from "../utils/businessLogic.js";
 import {
   createAndAddNewCartItem,
@@ -69,8 +70,8 @@ const invalidateCachesAndUpdateUI = (productList, appState) => {
  * @param {Object} appState - 앱 상태
  */
 export function handleAddToCart(event, productList, appState) {
-  const selectedProductId = document.getElementById("product-select").value;
-  const cartDisplay = document.getElementById("cart-items");
+  const selectedProductId = $("#product-select").value;
+  const cartDisplay = $("#cart-items");
 
   // 상품 검증 및 찾기
   const { product, isValid, error } = validateAndFindProduct(selectedProductId, productList);
@@ -98,6 +99,9 @@ export function handleAddToCart(event, productList, appState) {
 
   // 앱 상태 업데이트
   appState.lastSelectedProduct = selectedProductId;
+
+  // 캐시 무효화
+  clearSelectorCache();
 
   // UI 업데이트
   invalidateCachesAndUpdateUI(productList, appState);
@@ -134,7 +138,7 @@ export function handleCartItemAction(event, productList, appState) {
 export function handleQuantityChange(target, productList, appState) {
   const productId = target.getAttribute("data-product-id");
   const change = parseInt(target.getAttribute("data-change"));
-  const cartItem = document.getElementById(productId);
+  const cartItem = $(`#${productId}`);
 
   if (!cartItem || !productId) return;
 
@@ -173,6 +177,9 @@ export function handleQuantityChange(target, productList, appState) {
     cartItem.remove();
   }
 
+  // 캐시 무효화
+  clearSelectorCache();
+
   // UI 업데이트
   invalidateCachesAndUpdateUI(productList, appState);
 }
@@ -185,7 +192,7 @@ export function handleQuantityChange(target, productList, appState) {
  */
 export function handleItemRemove(target, productList, appState) {
   const productId = target.getAttribute("data-product-id");
-  const cartItem = document.getElementById(productId);
+  const cartItem = $(`#${productId}`);
 
   if (!cartItem || !productId) return;
 
@@ -201,6 +208,9 @@ export function handleItemRemove(target, productList, appState) {
 
   // 아이템 제거
   cartItem.remove();
+
+  // 캐시 무효화
+  clearSelectorCache();
 
   // UI 업데이트
   invalidateCachesAndUpdateUI(productList, appState);
@@ -287,9 +297,9 @@ export function setupEventListeners(addToCartButton, cartDisplay, productList, a
   });
 
   // 도움말 모달 이벤트 설정
-  const manualToggle = document.getElementById("help-toggle");
-  const manualOverlay = document.getElementById("help-modal");
-  const slidePanel = document.getElementById("slide-panel");
+  const manualToggle = $("#help-toggle");
+  const manualOverlay = $("#help-modal");
+  const slidePanel = $("#slide-panel");
 
   if (manualToggle && manualOverlay && slidePanel) {
     setupHelpModalEvents(manualToggle, manualOverlay, slidePanel);

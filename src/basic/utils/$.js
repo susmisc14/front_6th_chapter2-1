@@ -39,6 +39,14 @@ export function clearSelectorCache(selector = null) {
 }
 
 /**
+ * 특정 ID의 캐시 무효화
+ * @param {string} id - 무효화할 ID
+ */
+export function clearIdCache(id) {
+  selectorCache.delete(`#${id}`);
+}
+
+/**
  * 여러 요소 선택 (캐시 없음)
  * @param {string} selector - CSS 셀렉터
  * @returns {NodeList} DOM 요소들

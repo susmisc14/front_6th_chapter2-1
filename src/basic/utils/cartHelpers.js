@@ -3,6 +3,7 @@
  * 장바구니 아이템 관리, 수량 변경, 상태 업데이트 등의 기능을 제공
  */
 import { createCartItemElement } from "../ui/cartUI.js";
+import { $, clearSelectorCache } from "./$.js";
 
 /**
  * 기존 장바구니 아이템 찾기
@@ -10,7 +11,7 @@ import { createCartItemElement } from "../ui/cartUI.js";
  * @returns {Element|null} 기존 장바구니 아이템 요소
  */
 export function findExistingCartItem(productId) {
-  return document.getElementById(productId);
+  return $(`#${productId}`);
 }
 
 /**
@@ -47,6 +48,9 @@ export function createAndAddNewCartItem(product, cartDisplay) {
   const element = createCartItemElement(product);
   cartDisplay.appendChild(element);
   product.q--;
+
+  // 캐시 무효화
+  clearSelectorCache();
 }
 
 /**
