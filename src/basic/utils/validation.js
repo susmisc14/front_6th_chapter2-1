@@ -78,7 +78,7 @@ export function validateQuantity(quantity, maxQuantity) {
     return {
       isValid: false,
       error: new CartError(
-        `수량이 재고를 초과합니다. (최대: ${maxQuantity}개)`,
+        "재고가 부족합니다.",
         ERROR_CODES.INSUFFICIENT_STOCK,
         ERROR_TYPES.VALIDATION,
       ),

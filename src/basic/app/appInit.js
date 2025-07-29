@@ -2,9 +2,9 @@
  * 앱 초기화 관련 함수들
  * 애플리케이션 시작 및 초기 설정을 관리
  */
-import { updateStockInfo } from "../cart/cartUI.js";
-import { initializeProductList } from "../product/productService.js";
-import { updateSelectOptions } from "../product/productUI.js";
+import { initializeProductList } from "../services/productService.js";
+import { updateStockInfo } from "../ui/cartUI.js";
+import { updateSelectOptions } from "../ui/productUI.js";
 import { setupEventListeners } from "./eventHandlers.js";
 import { startPromotions } from "./promotions.js";
 

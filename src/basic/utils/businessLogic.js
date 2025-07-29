@@ -110,7 +110,7 @@ export const calculateBasePoints = (
   isTuesday = false,
   tuesdayMultiplier = TUESDAY_POINTS_MULTIPLIER,
 ) => {
-  const basePoints = totalAmount * baseRate;
+  const basePoints = Math.floor(totalAmount * baseRate);
   return isTuesday ? basePoints * tuesdayMultiplier : basePoints;
 };
 
@@ -257,43 +257,97 @@ export const calculateCartTotals = (cartItems, productList, options = {}) => {
     .filter(Boolean);
 
   // 합계 계산
-  const subtotal = itemCalculations.reduce((sum, item) => sum + item.itemTotal, 0);
-  const totalAmount = itemCalculations.reduce((sum, item) => sum + item.discountedItemTotal, 0);
+  const subtotal = itemCalculations.reduce((sum, item) => sum + item.itemTotal, 0); // Sum of original prices
+  const totalAfterIndividualDiscounts = itemCalculations.reduce(
+    (sum, item) => sum + item.discountedItemTotal,
+    0,
+  ); // Sum after individual item discounts
   const itemCount = itemCalculations.reduce((sum, item) => sum + item.quantity, 0);
 
-  // 개별 할인 정보 수집
-  const itemDiscounts = itemCalculations
-    .filter((item) => item.discountRate > 0)
-    .map((item) => ({
-      name: item.product.name,
-      discount: item.discountRate * CALCULATION_CONSTANTS.PERCENTAGE_MULTIPLIER,
-    }));
+  let currentAmountForOverallDiscounts = subtotal; // Start with subtotal for bulk discount consideration
 
-  // 대량구매 할인 적용 (개별 할인 무시)
-  const bulkDiscountResult = applyBulkDiscount(subtotal, itemCount, bulkThreshold, bulkRate);
-
-  let finalTotalAmount = totalAmount;
-  let finalItemDiscounts = itemDiscounts;
-
-  if (bulkDiscountResult.appliedDiscount > 0) {
-    // 대량구매 할인이 적용되면 개별 할인을 무시하고 subtotal에 대량구매 할인 적용
-    finalTotalAmount = bulkDiscountResult.discountedAmount;
-    finalItemDiscounts = []; // 개별 할인 정보 초기화 (대량구매 할인이 우선)
+  // 1. Apply Bulk Discount (if applicable) - overrides individual discounts
+  const isBulkDiscountApplied = itemCount >= bulkThreshold;
+  let bulkDiscountAmount = 0;
+  if (isBulkDiscountApplied) {
+    bulkDiscountAmount = subtotal * bulkRate;
+    currentAmountForOverallDiscounts = subtotal - bulkDiscountAmount;
+  } else {
+    // If no bulk discount, the base for further discounts is the total after individual discounts
+    currentAmountForOverallDiscounts = totalAfterIndividualDiscounts;
   }
 
-  // 화요일 할인 적용
-  const tuesdayResult = applyTuesdayDiscount(finalTotalAmount, tuesdayRate);
+  // 2. Apply Tuesday Discount (if applicable) - applied after bulk or individual discounts
+  const today = new Date();
+  const isTuesday = today.getDay() === DAYS_OF_WEEK.TUESDAY;
+  let tuesdayDiscountAmount = 0;
+  if (isTuesday) {
+    tuesdayDiscountAmount = currentAmountForOverallDiscounts * tuesdayRate;
+    currentAmountForOverallDiscounts -= tuesdayDiscountAmount;
+  }
+
+  const finalAmount = currentAmountForOverallDiscounts;
+
+  // 포인트 계산
+  const pointsObj = calculatePointsDetails(cartItems, productList, finalAmount);
+
+  // 포인트 상세 정보를 문자열로 변환
+  let pointsDetails = "";
+  if (pointsObj.totalPoints > 0) {
+    pointsDetails = `적립 포인트: ${pointsObj.totalPoints}p\n`;
+    pointsDetails += `기본: ${pointsObj.basePoints}p`;
+    if (pointsObj.isTuesday) pointsDetails += " (화요일 2배)";
+    if (pointsObj.setBonus > 0) {
+      // 세트 보너스 상세 설명
+      if (pointsObj.setBonus >= 150) {
+        pointsDetails += `\n풀세트 구매`;
+      } else if (pointsObj.setBonus >= 50) {
+        pointsDetails += `\n키보드+마우스 세트`;
+      } else {
+        pointsDetails += `\n세트: ${pointsObj.setBonus}p`;
+      }
+    }
+    if (pointsObj.quantityBonus > 0) {
+      // 수량 보너스 상세 설명
+      if (pointsObj.quantityBonus >= 100) {
+        pointsDetails += `\n대량구매(30개+)`;
+      } else if (pointsObj.quantityBonus >= 50) {
+        pointsDetails += `\n대량구매(20개+)`;
+      } else {
+        pointsDetails += `\n대량구매(10개+)`;
+      }
+    }
+  }
+
+  // Calculate discountInfo string
+  let discountInfo = "0.0%";
+  if (subtotal > 0) {
+    const totalDiscountPercentage = ((subtotal - finalAmount) / subtotal) * 100;
+    if (totalDiscountPercentage > 0) {
+      discountInfo = `${totalDiscountPercentage.toFixed(1)}%`;
+    }
+  }
 
   const result = {
     subtotal,
-    totalAmount: tuesdayResult.discountedAmount,
+    totalAmount: finalAmount,
     itemCount,
-    itemDiscounts: finalItemDiscounts,
-    discountRate: (subtotal - tuesdayResult.discountedAmount) / subtotal,
-    isTuesday: tuesdayResult.isTuesday,
+    itemDiscounts: isBulkDiscountApplied ? 0 : subtotal - totalAfterIndividualDiscounts,
+    discountRate: isBulkDiscountApplied
+      ? 0
+      : subtotal > 0
+        ? ((subtotal - totalAfterIndividualDiscounts) / subtotal) * 100
+        : 0,
+    isTuesday,
+    tuesdayDiscount: tuesdayDiscountAmount,
+    bulkDiscount: bulkDiscountAmount,
+    finalAmount,
+    totalSumFormatted: `₩${finalAmount.toLocaleString()}`,
+    discountInfo,
+    pointsDetails,
   };
 
-  // 결과를 캐시에 저장
+  // 캐시에 저장
   calculationCache.set(cacheKey, result);
 
   return result;

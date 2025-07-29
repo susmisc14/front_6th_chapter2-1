@@ -2,14 +2,14 @@
  * 프로모션 관련 함수들
  * 번개세일, 추천할인 등의 프로모션 기능을 관리
  */
-import { updatePricesInCart } from "../cart/cartUI.js";
 import {
   LIGHTNING_SALE_INTERVAL,
   LIGHTNING_SALE_RATE,
   SUGGEST_SALE_INTERVAL,
   SUGGEST_SALE_RATE,
 } from "../constants/productConstants.js";
-import { updateSelectOptions } from "../product/productUI.js";
+import { updatePricesInCart } from "../ui/cartUI.js";
+import { updateSelectOptions } from "../ui/productUI.js";
 import { delayedExecution, periodicExecution } from "../utils/asyncManager.js";
 import { showPromotion } from "../utils/notificationManager.js";
 

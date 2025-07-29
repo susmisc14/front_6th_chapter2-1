@@ -2,7 +2,7 @@
  * 액션 핸들러 순수 함수들
  * React 마이그레이션을 위해 DOM 조작과 분리된 비즈니스 로직
  */
-import { findProductById } from "../product/productService.js";
+import { findProductById } from "../services/productService.js";
 import { calculateCartTotals } from "./businessLogic.js";
 import { CartError, ERROR_CODES, ERROR_TYPES } from "./errorHandler.js";
 import {
