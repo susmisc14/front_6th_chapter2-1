@@ -22,5 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
 .bmad-core
 .cursor
+
+CLAUDE.md
+.claude
