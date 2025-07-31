@@ -4,7 +4,13 @@
  */
 import { calculateBonusPoints, calculateCartTotal } from "../services/cartService.js";
 import { updateStockInfo } from "../ui/cartUI.js";
-import { updateBonusPoints, updateCartUI, updateOrderSummary } from "../ui/eventUI.js";
+import {
+  updateBonusPoints,
+  updateCartUI,
+  updateDiscountInfo,
+  updateOrderSummary,
+  updateTuesdaySpecialDisplay,
+} from "../ui/eventUI.js";
 import { $, clearSelectorCache } from "../utils/$.js";
 import { calculateCartTotals, extractCartItemInfo } from "../utils/businessLogic.js";
 import {
@@ -217,42 +223,51 @@ export function handleItemRemove(target, productList, appState) {
 }
 
 /**
- * 장바구니 재계산 및 UI 업데이트
+ * 장바구니 재계산 및 UI 업데이트 - 원본과 동일
  * @param {Array} productList - 상품 목록
  * @param {Object} appState - 앱 상태
  */
 function recalculateCartAndUpdateUI(productList, appState) {
   const cartItems = Array.from(document.querySelectorAll("[id^='p']"));
-  const cartItemInfo = extractCartItemInfo(cartItems);
-  const calculationResult = calculateCartTotals(cartItemInfo, productList);
+
+  // 장바구니 아이템 정보 추출 - 원본과 동일하게 모든 아이템 포함
+  const cartItemInfo = cartItems.map((item) => {
+    const quantityElement = item.querySelector(".quantity-number");
+    return {
+      id: item.id,
+      quantity: quantityElement ? parseInt(quantityElement.textContent) : 0,
+    };
+  });
+
+  // 계산 결과
+  const calculationResult = calculateCartTotals(cartItemInfo, productList, appState);
 
   // 앱 상태 업데이트
   updateAppStateFromCalculation(appState, calculationResult);
 
   // UI 업데이트
-  updateCartUI(calculationResult, appState);
-  updateOrderSummary(calculationResult, appState);
+  updateCartUI(calculationResult);
+  updateOrderSummary(calculationResult, cartItemInfo, productList);
+  updateDiscountInfo(calculationResult);
+
+  // 재고 정보 업데이트 - 원본과 동일
   updateStockInfo(productList);
 
-  // 보너스 포인트 계산 및 업데이트
-  const pointsResult = calculateBonusPoints(
-    cartItems,
-    productList,
-    appState,
-    calculationResult.totalAmount,
-  );
-  updateBonusPoints(pointsResult);
+  // 포인트 업데이트 - 원본과 동일하게 항상 호출
+  updateBonusPoints(calculationResult, cartItems, productList, appState);
+  updateTuesdaySpecialDisplay(calculationResult.isTuesday);
 }
 
 /**
- * 계산 결과로 앱 상태 업데이트
+ * 계산 결과로 앱 상태 업데이트 - 원본과 동일
  * @param {Object} appState - 앱 상태
  * @param {Object} calculationResult - 계산 결과
  */
 function updateAppStateFromCalculation(appState, calculationResult) {
-  appState.totalAmount = calculationResult.totalAmount;
-  appState.itemCount = calculationResult.itemCount;
-  appState.discountRate = calculationResult.discountRate;
+  appState.totalAmount = calculationResult.totalAmt;
+  appState.itemCount = calculationResult.itemCnt;
+  appState.discountRate = calculationResult.discRate;
+  appState.isTuesday = calculationResult.isTuesday;
 }
 
 /**
@@ -296,10 +311,10 @@ export function setupEventListeners(addToCartButton, cartDisplay, productList, a
     handleCartItemAction(event, productList, appState);
   });
 
-  // 도움말 모달 이벤트 설정
-  const manualToggle = $("#help-toggle");
-  const manualOverlay = $("#help-modal");
-  const slidePanel = $("#slide-panel");
+  // 도움말 모달 이벤트 설정 - 원본과 동일
+  const manualToggle = document.querySelector(".fixed.top-4.right-4");
+  const manualOverlay = document.querySelector(".fixed.inset-0");
+  const slidePanel = document.querySelector(".fixed.right-0.top-0");
 
   if (manualToggle && manualOverlay && slidePanel) {
     setupHelpModalEvents(manualToggle, manualOverlay, slidePanel);

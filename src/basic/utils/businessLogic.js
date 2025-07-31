@@ -1,7 +1,6 @@
 /**
  * 비즈니스 로직 순수 함수들
- * DOM 조작과 분리하여 테스트 가능성 향상
- * 성능 최적화를 위한 메모이제이션 포함
+ * 원본 main.original.js의 계산 로직을 100% 유지
  */
 import {
   BASE_POINTS_RATE,
@@ -36,372 +35,200 @@ const generateCacheKey = (cartItems, productList) => {
 };
 
 /**
- * 상품 가격 계산
- * @param {Object} product - 상품 객체
- * @param {number} quantity - 수량
- * @returns {number} 총 가격
- */
-export const calculateProductPrice = (product, quantity) => product.val * quantity;
-
-/**
- * 할인율 계산
- * @param {Object} product - 상품 객체
- * @param {number} quantity - 수량
- * @param {Object} discountRates - 할인율 객체
- * @returns {number} 할인율 (0-1)
- */
-export const calculateDiscountRate = (product, quantity, discountRates) =>
-  quantity >= 10 && discountRates[product.id] ? discountRates[product.id] : 0;
-
-/**
- * 할인된 가격 계산
- * @param {number} originalPrice - 원래 가격
- * @param {number} discountRate - 할인율 (0-1)
- * @returns {number} 할인된 가격
- */
-export const calculateDiscountedPrice = (originalPrice, discountRate) =>
-  originalPrice * (1 - discountRate);
-
-/**
- * 대량구매 할인 적용
- * @param {number} totalAmount - 총 금액
- * @param {number} totalQuantity - 총 수량
- * @param {number} threshold - 할인 임계값
- * @param {number} discountRate - 할인율
- * @returns {Object} { discountedAmount, appliedDiscount }
- */
-export const applyBulkDiscount = (totalAmount, totalQuantity, threshold, discountRate) => {
-  const shouldApplyBulkDiscount = totalQuantity >= threshold;
-
-  return {
-    discountedAmount: shouldApplyBulkDiscount ? totalAmount * (1 - discountRate) : totalAmount,
-    appliedDiscount: shouldApplyBulkDiscount ? discountRate : 0,
-  };
-};
-
-/**
- * 화요일 할인 적용
- * @param {number} amount - 금액
- * @param {number} discountRate - 할인율
- * @returns {Object} { discountedAmount, isTuesday }
- */
-export const applyTuesdayDiscount = (amount, discountRate) => {
-  const today = new Date();
-  const isTuesday = today.getDay() === DAYS_OF_WEEK.TUESDAY;
-  const shouldApplyTuesdayDiscount = isTuesday && amount > 0;
-
-  return {
-    discountedAmount: shouldApplyTuesdayDiscount ? amount * (1 - discountRate) : amount,
-    isTuesday,
-  };
-};
-
-/**
- * 포인트 계산
- * @param {number} totalAmount - 총 결제 금액
- * @param {number} baseRate - 기본 적립률
- * @param {boolean} isTuesday - 화요일 여부
- * @param {number} tuesdayMultiplier - 화요일 배수
- * @returns {number} 적립 포인트
- */
-export const calculateBasePoints = (
-  totalAmount,
-  baseRate = BASE_POINTS_RATE,
-  isTuesday = false,
-  tuesdayMultiplier = TUESDAY_POINTS_MULTIPLIER,
-) => {
-  const basePoints = Math.floor(totalAmount * baseRate);
-  return isTuesday ? basePoints * tuesdayMultiplier : basePoints;
-};
-
-/**
- * 세트 보너스 포인트 계산
+ * 장바구니 총액 계산 - 원본과 동일
  * @param {Array} cartItems - 장바구니 아이템들
  * @param {Array} productList - 상품 목록
- * @param {Object} setBonuses - 세트 보너스 설정
- * @returns {number} 세트 보너스 포인트
- */
-export const calculateSetBonusPoints = (cartItems, productList, setBonuses) => {
-  const itemIds = cartItems.map((item) => item.id);
-  let bonusPoints = 0;
-
-  // 세트 보너스 조건 체크 함수
-  const checkSetCondition = (requiredProducts) =>
-    requiredProducts.every((productId) => itemIds.includes(productId));
-
-  // 키보드+마우스 세트
-  if (checkSetCondition([PRODUCT_ONE, PRODUCT_TWO])) {
-    bonusPoints += setBonuses.keyboardMouse || SET_BONUS_POINTS;
-  }
-
-  // 풀세트 (키보드+마우스+모니터암)
-  if (checkSetCondition([PRODUCT_ONE, PRODUCT_TWO, PRODUCT_THREE])) {
-    bonusPoints += setBonuses.fullSet || FULL_SET_BONUS_POINTS;
-  }
-
-  return bonusPoints;
-};
-
-/**
- * 수량별 보너스 포인트 계산
- * @param {number} totalQuantity - 총 수량
- * @param {Object} quantityBonuses - 수량별 보너스 설정
- * @returns {number} 수량 보너스 포인트
- */
-export const calculateQuantityBonusPoints = (
-  totalQuantity,
-  quantityBonuses = QUANTITY_BONUS_POINTS,
-) => {
-  return Object.entries(quantityBonuses)
-    .filter(([threshold]) => totalQuantity >= parseInt(threshold))
-    .reduce((maxBonus, [, bonus]) => Math.max(maxBonus, bonus), 0);
-};
-
-/**
- * 총 포인트 계산
- * @param {number} basePoints - 기본 포인트
- * @param {number} setBonus - 세트 보너스
- * @param {number} quantityBonus - 수량 보너스
- * @returns {number} 총 포인트
- */
-export const calculateTotalPoints = (basePoints, setBonus, quantityBonus) =>
-  basePoints + setBonus + quantityBonus;
-
-/**
- * 장바구니 아이템 정보 추출
- * @param {Array} cartItems - 장바구니 아이템 DOM 요소들
- * @returns {Array} 아이템 정보 배열
- */
-export const extractCartItemInfo = (cartItems) =>
-  Array.from(cartItems)
-    .map((item) => {
-      const quantityElement = item.querySelector(".quantity-number");
-      const productId = item.id;
-
-      return {
-        id: productId,
-        quantity: quantityElement ? parseInt(quantityElement.textContent) : 0,
-      };
-    })
-    .filter((item) => item.quantity > 0);
-
-/**
- * 상품 재고 업데이트
- * @param {Array} productList - 상품 목록
- * @param {string} productId - 상품 ID
- * @param {number} quantity - 변경 수량 (음수면 감소)
- * @returns {boolean} 업데이트 성공 여부
- */
-export const updateProductStock = (productList, productId, quantity) => {
-  const product = productList.find((p) => p.id === productId);
-  if (!product) return false;
-
-  const newStock = product.q - quantity;
-  if (newStock < 0) return false;
-
-  product.q = newStock;
-  return true;
-};
-
-/**
- * 장바구니 아이템별 계산
- * @param {Object} cartItem - 장바구니 아이템
- * @param {Array} productList - 상품 목록
- * @param {Object} discountRates - 할인율 객체
- * @returns {Object} 아이템별 계산 결과
- */
-const calculateCartItem = (cartItem, productList, discountRates) => {
-  const product = productList.find((p) => p.id === cartItem.id);
-  if (!product) return null;
-
-  const quantity = cartItem.quantity;
-  const itemTotal = calculateProductPrice(product, quantity);
-  const discountRate = calculateDiscountRate(product, quantity, discountRates);
-  const discountedItemTotal = calculateDiscountedPrice(itemTotal, discountRate);
-
-  return {
-    product,
-    quantity,
-    itemTotal,
-    discountRate,
-    discountedItemTotal,
-  };
-};
-
-/**
- * 장바구니 총계 계산 (메모이제이션 적용)
- * @param {Array} cartItems - 장바구니 아이템들
- * @param {Array} productList - 상품 목록
- * @param {Object} options - 계산 옵션
+ * @param {Object} appState - 앱 상태
  * @returns {Object} 계산 결과
  */
-export const calculateCartTotals = (cartItems, productList, options = {}) => {
-  // 캐시 키 생성
+export function calculateCartTotals(cartItems, productList, appState) {
   const cacheKey = generateCacheKey(cartItems, productList);
 
-  // 캐시에서 확인
   if (calculationCache.has(cacheKey)) {
     return calculationCache.get(cacheKey);
   }
 
-  const {
-    discountRates = DISCOUNT_RATES,
-    bulkThreshold = BULK_DISCOUNT_THRESHOLD,
-    bulkRate = BULK_DISCOUNT_RATE,
-    tuesdayRate = TUESDAY_DISCOUNT_RATE,
-  } = options;
+  let totalAmt = 0;
+  let itemCnt = 0;
+  let subTot = 0;
+  let itemDiscounts = [];
+  let lowStockItems = [];
 
-  // 각 아이템별 계산
-  const itemCalculations = cartItems
-    .map((cartItem) => calculateCartItem(cartItem, productList, discountRates))
-    .filter(Boolean);
+  // 재고 부족 아이템 확인
+  for (let idx = 0; idx < productList.length; idx++) {
+    if (productList[idx].q < 5 && productList[idx].q > 0) {
+      lowStockItems.push(productList[idx].name);
+    }
+  }
 
-  // 합계 계산
-  const subtotal = itemCalculations.reduce((sum, item) => sum + item.itemTotal, 0); // Sum of original prices
-  const totalAfterIndividualDiscounts = itemCalculations.reduce(
-    (sum, item) => sum + item.discountedItemTotal,
-    0,
-  ); // Sum after individual item discounts
-  const itemCount = itemCalculations.reduce((sum, item) => sum + item.quantity, 0);
+  // 각 장바구니 아이템 계산 - 원본과 동일
+  for (let i = 0; i < cartItems.length; i++) {
+    let curItem = null;
 
-  let currentAmountForOverallDiscounts = subtotal; // Start with subtotal for bulk discount consideration
+    // 상품 정보 찾기
+    for (let j = 0; j < productList.length; j++) {
+      if (productList[j].id === cartItems[i].id) {
+        curItem = productList[j];
+        break;
+      }
+    }
 
-  // 1. Apply Bulk Discount (if applicable) - overrides individual discounts
-  const isBulkDiscountApplied = itemCount >= bulkThreshold;
-  let bulkDiscountAmount = 0;
-  if (isBulkDiscountApplied) {
-    bulkDiscountAmount = subtotal * bulkRate;
-    currentAmountForOverallDiscounts = subtotal - bulkDiscountAmount;
+    if (!curItem) continue;
+
+    const q = cartItems[i].quantity;
+    const itemTot = curItem.val * q;
+    let disc = 0;
+
+    itemCnt += q;
+    subTot += itemTot;
+
+    // 10개 이상 구매 시 개별 할인 - 원본과 동일
+    if (q >= 10) {
+      if (curItem.id === PRODUCT_ONE) {
+        disc = 10 / 100;
+      } else if (curItem.id === PRODUCT_TWO) {
+        disc = 15 / 100;
+      } else if (curItem.id === PRODUCT_THREE) {
+        disc = 20 / 100;
+      } else if (curItem.id === "p4") {
+        disc = 5 / 100;
+      } else if (curItem.id === "p5") {
+        disc = 25 / 100;
+      }
+
+      if (disc > 0) {
+        itemDiscounts.push({ name: curItem.name, discount: disc * 100 });
+      }
+    }
+
+    totalAmt += itemTot * (1 - disc);
+  }
+
+  let discRate = 0;
+  const originalTotal = subTot;
+
+  // 30개 이상 구매 시 대량 할인 - 원본과 동일
+  if (itemCnt >= 30) {
+    totalAmt = (subTot * 75) / 100;
+    discRate = 25 / 100;
   } else {
-    // If no bulk discount, the base for further discounts is the total after individual discounts
-    currentAmountForOverallDiscounts = totalAfterIndividualDiscounts;
+    discRate = (subTot - totalAmt) / subTot;
   }
 
-  // 2. Apply Tuesday Discount (if applicable) - applied after bulk or individual discounts
+  // 화요일 특별 할인 - 원본과 동일
   const today = new Date();
-  const isTuesday = today.getDay() === DAYS_OF_WEEK.TUESDAY;
-  let tuesdayDiscountAmount = 0;
-  if (isTuesday) {
-    tuesdayDiscountAmount = currentAmountForOverallDiscounts * tuesdayRate;
-    currentAmountForOverallDiscounts -= tuesdayDiscountAmount;
-  }
+  const isTuesday = today.getDay() === 2;
 
-  const finalAmount = currentAmountForOverallDiscounts;
-
-  // 포인트 계산
-  const pointsObj = calculatePointsDetails(cartItems, productList, finalAmount);
-
-  // 포인트 상세 정보를 문자열로 변환
-  let pointsDetails = "";
-  if (pointsObj.totalPoints > 0) {
-    pointsDetails = `적립 포인트: ${pointsObj.totalPoints}p\n`;
-    pointsDetails += `기본: ${pointsObj.basePoints}p`;
-    if (pointsObj.isTuesday) pointsDetails += " (화요일 2배)";
-    if (pointsObj.setBonus > 0) {
-      // 세트 보너스 상세 설명
-      if (pointsObj.setBonus >= 150) {
-        pointsDetails += `\n풀세트 구매`;
-      } else if (pointsObj.setBonus >= 50) {
-        pointsDetails += `\n키보드+마우스 세트`;
-      } else {
-        pointsDetails += `\n세트: ${pointsObj.setBonus}p`;
-      }
-    }
-    if (pointsObj.quantityBonus > 0) {
-      // 수량 보너스 상세 설명
-      if (pointsObj.quantityBonus >= 100) {
-        pointsDetails += `\n대량구매(30개+)`;
-      } else if (pointsObj.quantityBonus >= 50) {
-        pointsDetails += `\n대량구매(20개+)`;
-      } else {
-        pointsDetails += `\n대량구매(10개+)`;
-      }
-    }
-  }
-
-  // Calculate discountInfo string
-  let discountInfo = "0.0%";
-  if (subtotal > 0) {
-    const totalDiscountPercentage = ((subtotal - finalAmount) / subtotal) * 100;
-    if (totalDiscountPercentage > 0) {
-      discountInfo = `${totalDiscountPercentage.toFixed(1)}%`;
-    }
+  if (isTuesday && totalAmt > 0) {
+    totalAmt = (totalAmt * 90) / 100;
+    discRate = 1 - totalAmt / originalTotal;
   }
 
   const result = {
-    subtotal,
-    totalAmount: finalAmount,
-    itemCount,
-    itemDiscounts: isBulkDiscountApplied ? 0 : subtotal - totalAfterIndividualDiscounts,
-    discountRate: isBulkDiscountApplied
-      ? 0
-      : subtotal > 0
-        ? ((subtotal - totalAfterIndividualDiscounts) / subtotal) * 100
-        : 0,
+    totalAmt: Math.round(totalAmt),
+    itemCnt,
+    subTot,
+    discRate,
     isTuesday,
-    tuesdayDiscount: tuesdayDiscountAmount,
-    bulkDiscount: bulkDiscountAmount,
-    finalAmount,
-    totalSumFormatted: `₩${finalAmount.toLocaleString()}`,
-    discountInfo,
-    pointsDetails,
+    itemDiscounts,
+    lowStockItems,
+    originalTotal,
   };
 
-  // 캐시에 저장
   calculationCache.set(cacheKey, result);
-
   return result;
-};
+}
 
 /**
- * 포인트 상세 정보 계산
- * @param {Array} cartItems - 장바구니 아이템들
+ * 보너스 포인트 계산 - 원본과 동일
+ * @param {Array} cartItems - 장바구니 아이템들 (DOM 요소 또는 객체)
  * @param {Array} productList - 상품 목록
- * @param {number} totalAmount - 총 결제 금액
- * @returns {Object} 포인트 정보
+ * @param {Object} appState - 앱 상태
+ * @param {number} totalAmount - 총액
+ * @returns {Object} 포인트 계산 결과 { finalPoints, pointsDetail }
  */
-export const calculatePointsDetails = (cartItems, productList, totalAmount) => {
+export function calculateBonusPoints(cartItems, productList, appState, totalAmount) {
+  if (cartItems.length === 0) {
+    return { finalPoints: 0, pointsDetail: [] };
+  }
+
+  let basePoints = Math.floor(totalAmount / 1000);
+  let finalPoints = 0;
+  let pointsDetail = [];
+
+  if (basePoints > 0) {
+    finalPoints = basePoints;
+    pointsDetail.push("기본: " + basePoints + "p");
+  }
+
+  // 화요일 포인트 배수 - 원본과 동일
   const today = new Date();
-  const isTuesday = today.getDay() === DAYS_OF_WEEK.TUESDAY;
+  if (today.getDay() === 2) {
+    if (basePoints > 0) {
+      finalPoints = basePoints * 2;
+      pointsDetail.push("화요일 2배");
+    }
+  }
 
-  // 기본 포인트
-  const basePoints = calculateBasePoints(
-    totalAmount,
-    BASE_POINTS_RATE,
-    isTuesday,
-    TUESDAY_POINTS_MULTIPLIER,
-  );
+  // 상품 조합 보너스 - 원본과 동일
+  const cartItemInfo = extractCartItemInfo(cartItems);
+  const hasKeyboard = cartItemInfo.hasKeyboard;
+  const hasMouse = cartItemInfo.hasMouse;
+  const hasMonitorArm = cartItemInfo.hasMonitorArm;
 
-  // 세트 보너스
-  const setBonus = calculateSetBonusPoints(cartItems, productList, {
-    keyboardMouse: SET_BONUS_POINTS,
-    fullSet: FULL_SET_BONUS_POINTS,
-  });
+  if (hasKeyboard && hasMouse) {
+    finalPoints += 50;
+    pointsDetail.push("키보드+마우스 세트 +50p");
+  }
+  if (hasKeyboard && hasMouse && hasMonitorArm) {
+    finalPoints += 100;
+    pointsDetail.push("풀세트 구매 +100p");
+  }
 
-  // 수량 보너스
-  const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const quantityBonus = calculateQuantityBonusPoints(totalQuantity, QUANTITY_BONUS_POINTS);
+  // 수량 보너스 - 원본과 동일
+  if (cartItemInfo.totalQuantity >= 30) {
+    finalPoints += 100;
+    pointsDetail.push("대량구매(30개+) +100p");
+  } else if (cartItemInfo.totalQuantity >= 20) {
+    finalPoints += 50;
+    pointsDetail.push("대량구매(20개+) +50p");
+  } else if (cartItemInfo.totalQuantity >= 10) {
+    finalPoints += 20;
+    pointsDetail.push("대량구매(10개+) +20p");
+  }
 
-  // 총 포인트
-  const totalPoints = calculateTotalPoints(basePoints, setBonus, quantityBonus);
+  return { finalPoints, pointsDetail };
+}
+
+/**
+ * 장바구니 아이템 정보 추출 - 원본과 동일
+ * @param {Array} cartItems - 장바구니 아이템들 (DOM 요소 배열)
+ * @returns {Object} 추출된 정보
+ */
+export function extractCartItemInfo(cartItems) {
+  let hasKeyboard = false;
+  let hasMouse = false;
+  let hasMonitorArm = false;
+  let totalQuantity = 0;
+
+  for (const item of cartItems) {
+    const quantityElement = item.querySelector(".quantity-number");
+    const quantity = quantityElement ? parseInt(quantityElement.textContent) : 0;
+    totalQuantity += quantity;
+
+    if (item.id === "p1") {
+      hasKeyboard = true;
+    } else if (item.id === "p2") {
+      hasMouse = true;
+    } else if (item.id === "p3") {
+      hasMonitorArm = true;
+    }
+  }
 
   return {
-    basePoints,
-    setBonus,
-    quantityBonus,
-    totalPoints,
-    isTuesday,
+    hasKeyboard,
+    hasMouse,
+    hasMonitorArm,
+    totalQuantity,
   };
-};
-
-/**
- * 계산 캐시 무효화
- * @param {string} [cacheKey] - 특정 캐시 키만 무효화 (선택사항)
- */
-export const clearCalculationCache = (cacheKey = null) => {
-  if (cacheKey) {
-    calculationCache.delete(cacheKey);
-  } else {
-    calculationCache.clear();
-  }
-};
+}

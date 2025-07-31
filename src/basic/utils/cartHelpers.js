@@ -52,12 +52,3 @@ export function createAndAddNewCartItem(product, cartDisplay) {
   // 캐시 무효화
   clearSelectorCache();
 }
-
-/**
- * 앱 상태 업데이트
- * @param {Object} appState - 앱 상태 객체
- * @param {string} selectedProductId - 선택된 상품 ID
- */
-export function updateAppState(appState, selectedProductId) {
-  appState.lastSelectedProduct = selectedProductId;
-}

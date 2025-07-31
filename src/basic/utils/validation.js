@@ -2,7 +2,42 @@
  * 상품 유효성 검사 및 에러 처리 유틸리티
  * 순수 함수로 구현하여 테스트 가능성 향상
  */
-import { CartError, ERROR_CODES, ERROR_TYPES } from "./errorHandler.js";
+
+/**
+ * 에러 타입 정의
+ */
+export const ERROR_TYPES = {
+  VALIDATION: "VALIDATION",
+  BUSINESS_LOGIC: "BUSINESS_LOGIC",
+  DOM_OPERATION: "DOM_OPERATION",
+  NETWORK: "NETWORK",
+  UNKNOWN: "UNKNOWN",
+};
+
+/**
+ * 에러 코드 정의
+ */
+export const ERROR_CODES = {
+  PRODUCT_NOT_FOUND: "PRODUCT_NOT_FOUND",
+  INSUFFICIENT_STOCK: "INSUFFICIENT_STOCK",
+  NO_PRODUCT_SELECTED: "NO_PRODUCT_SELECTED",
+  INVALID_QUANTITY: "INVALID_QUANTITY",
+  DOM_ELEMENT_NOT_FOUND: "DOM_ELEMENT_NOT_FOUND",
+  CALCULATION_ERROR: "CALCULATION_ERROR",
+};
+
+/**
+ * 커스텀 에러 클래스
+ */
+export class CartError extends Error {
+  constructor(message, code, type = ERROR_TYPES.BUSINESS_LOGIC) {
+    super(message);
+    this.name = "CartError";
+    this.code = code;
+    this.type = type;
+    this.timestamp = new Date().toISOString();
+  }
+}
 
 /**
  * 상품 가용성 검사

@@ -1,64 +1,21 @@
 /**
  * 장바구니 UI 관련 함수들
- * 장바구니 아이템 생성, 재고 정보 업데이트, 가격 업데이트 등의 UI 기능을 제공
+ * 원본 main.original.js의 레이아웃과 스타일을 100% 유지
  */
-import { LOW_STOCK_THRESHOLD } from "../constants/productConstants.js";
-import {
-  CART_ITEM_CONTAINER_TEMPLATE,
-  CART_ITEM_TEMPLATE,
-  PRICE_DISPLAY_NORMAL_TEMPLATE,
-  PRICE_DISPLAY_SALE_TEMPLATE,
-  PRICE_DISPLAY_SUGGEST_TEMPLATE,
-  PRICE_DISPLAY_SUPER_SALE_TEMPLATE,
-  STOCK_LOW_ITEM_TEMPLATE,
-  STOCK_LOW_MESSAGE_TEMPLATE,
-  STOCK_OUT_ITEM_TEMPLATE,
-} from "../constants/uiTemplates.js";
 import { $ } from "../utils/$.js";
-import { bindTemplate, createUIElement, setElementHTML, setElementText } from "./uiHelpers.js";
+import {
+  createUIElement,
+  setElementAttributes,
+  setElementHTML,
+  setElementText,
+} from "./uiHelpers.js";
 
 /**
- * 새 장바구니 아이템 생성
+ * 새 장바구니 아이템 생성 - 원본과 동일
  * @param {Object} product - 상품 객체
  * @returns {Element} 생성된 장바구니 아이템 DOM 요소
  */
 export function createCartItemElement(product) {
-  const { discountIcon, priceDisplay } = calculateProductDiscountInfo(product);
-
-  // 템플릿에 데이터 바인딩
-  const cartItemContent = bindTemplate(CART_ITEM_TEMPLATE, {
-    productName: `${discountIcon}${product.name}`,
-    priceDisplay,
-    productId: product.id,
-  });
-
-  // 컨테이너 템플릿에 내용 바인딩
-  const containerTemplate = bindTemplate(CART_ITEM_CONTAINER_TEMPLATE, {
-    productId: product.id,
-    cartItemContent,
-  });
-
-  // UI 요소 생성
-  const cartItemElement = createUIElement(containerTemplate);
-
-  return cartItemElement;
-}
-
-/**
- * 상품 할인 정보 계산 (UI 표시용)
- * @param {Object} product - 상품 객체
- * @returns {Object} 할인 정보 객체
- */
-function calculateProductDiscountInfo(product) {
-  const discountClass =
-    product.onSale && product.suggestSale
-      ? "text-purple-600"
-      : product.onSale
-        ? "text-red-500"
-        : product.suggestSale
-          ? "text-blue-500"
-          : "";
-
   const discountIcon =
     product.onSale && product.suggestSale
       ? "⚡💝"
@@ -70,101 +27,82 @@ function calculateProductDiscountInfo(product) {
 
   const priceDisplay =
     product.onSale || product.suggestSale
-      ? `<span class="line-through text-gray-400">₩${product.originalVal.toLocaleString()}</span> <span class="${discountClass}">₩${product.val.toLocaleString()}</span>`
+      ? `<span class="line-through text-gray-400">₩${product.originalVal.toLocaleString()}</span> <span class="${product.onSale && product.suggestSale ? "text-purple-600" : product.onSale ? "text-red-500" : "text-blue-500"}">₩${product.val.toLocaleString()}</span>`
       : `₩${product.val.toLocaleString()}`;
 
-  return { discountClass, discountIcon, priceDisplay };
+  const itemTemplate = `
+    <div class="w-20 h-20 bg-gradient-black relative overflow-hidden">
+      <div class="absolute top-1/2 left-1/2 w-[60%] h-[60%] bg-white/10 -translate-x-1/2 -translate-y-1/2 rotate-45"></div>
+    </div>
+    <div>
+      <h3 class="text-base font-normal mb-1 tracking-tight">${discountIcon}${product.name}</h3>
+      <p class="text-xs text-gray-500 mb-0.5 tracking-wide">PRODUCT</p>
+      <p class="text-xs text-black mb-3">${priceDisplay}</p>
+      <div class="flex items-center gap-4">
+        <button class="quantity-change w-6 h-6 border border-black bg-white text-sm flex items-center justify-center transition-all hover:bg-black hover:text-white" data-product-id="${product.id}" data-change="-1">−</button>
+        <span class="quantity-number text-sm font-normal min-w-[20px] text-center tabular-nums">1</span>
+        <button class="quantity-change w-6 h-6 border border-black bg-white text-sm flex items-center justify-center transition-all hover:bg-black hover:text-white" data-product-id="${product.id}" data-change="1">+</button>
+      </div>
+    </div>
+    <div class="text-right">
+      <div class="text-lg mb-2 tracking-tight tabular-nums">${priceDisplay}</div>
+      <a class="remove-item text-2xs text-gray-500 uppercase tracking-wider cursor-pointer transition-colors border-b border-transparent hover:text-black hover:border-black" data-product-id="${product.id}">Remove</a>
+    </div>
+  `;
+
+  const newItem = createUIElement(`
+    <div class="grid grid-cols-[80px_1fr_auto] gap-5 py-5 border-b border-gray-100 first:pt-0 last:border-b-0 last:pb-0">
+      ${itemTemplate}
+    </div>
+  `);
+
+  return setElementAttributes(newItem, {
+    id: product.id,
+    className:
+      "grid grid-cols-[80px_1fr_auto] gap-5 py-5 border-b border-gray-100 first:pt-0 last:border-b-0 last:pb-0",
+  });
 }
 
 /**
- * 재고 정보 업데이트
+ * 재고 정보 업데이트 - 원본과 동일
  * @param {Array} productList - 상품 목록
  */
 export function updateStockInfo(productList) {
   const stockInfo = $("#stock-status");
   if (!stockInfo) return;
 
-  const stockMessages = [];
+  let infoMsg = "";
+  let totalStock = 0;
 
-  for (const item of productList) {
-    if (item.q < LOW_STOCK_THRESHOLD) {
+  // 총 재고 계산
+  for (let i = 0; i < productList.length; i++) {
+    totalStock += productList[i].q;
+  }
+
+  // 재고 부족/품절 정보 생성 - 원본과 동일
+  productList.forEach(function (item) {
+    if (item.q < 5) {
       if (item.q > 0) {
-        const message = bindTemplate(STOCK_LOW_ITEM_TEMPLATE, {
-          productName: item.name,
-          stockCount: item.q,
-        });
-        stockMessages.push(message);
+        infoMsg = infoMsg + item.name + ": 재고 부족 (" + item.q + "개 남음)\n";
       } else {
-        const message = bindTemplate(STOCK_OUT_ITEM_TEMPLATE, {
-          productName: item.name,
-        });
-        stockMessages.push(message);
+        infoMsg = infoMsg + item.name + ": 품절\n";
       }
     }
-  }
+  });
 
-  const stockMsg = stockMessages.join("\n");
-  setElementText(stockInfo, stockMsg);
+  setElementText(stockInfo, infoMsg);
 }
 
 /**
- * 가격 표시 템플릿 생성
- * @param {Object} product - 상품 정보
- * @returns {string} 가격 표시 HTML
- */
-function createPriceDisplay(product) {
-  const originalPrice = product.originalVal?.toLocaleString() || product.val.toLocaleString();
-  const salePrice = product.val.toLocaleString();
-
-  if (product.onSale && product.suggestSale) {
-    return bindTemplate(PRICE_DISPLAY_SUPER_SALE_TEMPLATE, {
-      originalPrice,
-      salePrice,
-    });
-  } else if (product.onSale) {
-    return bindTemplate(PRICE_DISPLAY_SALE_TEMPLATE, {
-      originalPrice,
-      salePrice,
-    });
-  } else if (product.suggestSale) {
-    return bindTemplate(PRICE_DISPLAY_SUGGEST_TEMPLATE, {
-      originalPrice,
-      salePrice,
-    });
-  } else {
-    return bindTemplate(PRICE_DISPLAY_NORMAL_TEMPLATE, {
-      price: product.val.toLocaleString(),
-    });
-  }
-}
-
-/**
- * 상품명 표시 템플릿 생성
- * @param {Object} product - 상품 정보
- * @returns {string} 상품명
- */
-function createProductNameDisplay(product) {
-  let name = product.name;
-
-  if (product.onSale && product.suggestSale) {
-    name = "⚡💝" + name;
-  } else if (product.onSale) {
-    name = "⚡" + name;
-  } else if (product.suggestSale) {
-    name = "💝" + name;
-  }
-
-  return name;
-}
-
-/**
- * 장바구니 내 가격 업데이트
+ * 장바구니 내 가격 업데이트 - 원본과 동일
  * @param {Array} cartItems - 장바구니 아이템들
  * @param {Array} productList - 상품 목록
  */
 export function updatePricesInCart(cartItems, productList) {
   for (const cartItem of cartItems) {
-    const product = findProductById(productList, cartItem.id);
+    const itemId = cartItem.id;
+    const product = productList.find((p) => p.id === itemId);
+
     if (!product) continue;
 
     const priceDiv = cartItem.querySelector(".text-lg");
@@ -172,22 +110,27 @@ export function updatePricesInCart(cartItems, productList) {
 
     if (!priceDiv || !nameDiv) continue;
 
-    // 템플릿을 활용한 가격 표시 생성
-    const priceDisplay = createPriceDisplay(product);
-    const productName = createProductNameDisplay(product);
-
-    // uiHelpers를 사용하여 요소 생성
-    setElementHTML(priceDiv, priceDisplay);
-    setElementText(nameDiv, productName);
+    if (product.onSale && product.suggestSale) {
+      setElementHTML(
+        priceDiv,
+        `<span class="line-through text-gray-400">₩${product.originalVal.toLocaleString()}</span> <span class="text-purple-600">₩${product.val.toLocaleString()}</span>`,
+      );
+      setElementText(nameDiv, "⚡💝" + product.name);
+    } else if (product.onSale) {
+      setElementHTML(
+        priceDiv,
+        `<span class="line-through text-gray-400">₩${product.originalVal.toLocaleString()}</span> <span class="text-red-500">₩${product.val.toLocaleString()}</span>`,
+      );
+      setElementText(nameDiv, "⚡" + product.name);
+    } else if (product.suggestSale) {
+      setElementHTML(
+        priceDiv,
+        `<span class="line-through text-gray-400">₩${product.originalVal.toLocaleString()}</span> <span class="text-blue-500">₩${product.val.toLocaleString()}</span>`,
+      );
+      setElementText(nameDiv, "💝" + product.name);
+    } else {
+      setElementText(priceDiv, "₩" + product.val.toLocaleString());
+      setElementText(nameDiv, product.name);
+    }
   }
-}
-
-/**
- * 상품 ID로 상품 찾기 (내부 함수)
- * @param {Array} productList - 상품 목록
- * @param {string} productId - 상품 ID
- * @returns {Object|null} 찾은 상품 또는 null
- */
-function findProductById(productList, productId) {
-  return productList.find((product) => product.id === productId) || null;
 }

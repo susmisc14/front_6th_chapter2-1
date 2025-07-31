@@ -9,6 +9,13 @@
  * @returns {HTMLElement} 생성된 DOM 요소
  */
 export function createUIElement(template) {
+  if (!template || typeof template !== "string") {
+    console.warn("createUIElement: template is not a valid string", template);
+    // 빈 div를 반환하여 null 오류 방지
+    const fallbackDiv = document.createElement("div");
+    return fallbackDiv;
+  }
+
   const tempDiv = document.createElement("div");
   tempDiv.innerHTML = template.trim();
   const element = tempDiv.firstElementChild;
@@ -53,59 +60,20 @@ export function setElementAttributes(element, attributes = {}) {
 }
 
 /**
- * 템플릿과 속성을 함께 사용하여 요소 생성
- * @param {string} template - HTML 템플릿 문자열
- * @param {Object} attributes - 요소 속성들
- * @returns {HTMLElement} 생성된 DOM 요소
- */
-export function createUIElementWithAttributes(template, attributes = {}) {
-  const element = createUIElement(template);
-  return setElementAttributes(element, attributes);
-}
-
-/**
- * 여러 요소를 포함하는 DocumentFragment 생성
- * @param {Array} elements - DOM 요소들의 배열
- * @returns {DocumentFragment} 모든 요소가 포함된 DocumentFragment
- */
-export function createFragment(elements) {
-  const fragment = document.createDocumentFragment();
-  elements.forEach((element) => {
-    if (element instanceof DocumentFragment) {
-      fragment.appendChild(element);
-    } else if (element instanceof Element) {
-      fragment.appendChild(element);
-    }
-  });
-  return fragment;
-}
-
-/**
  * 템플릿 문자열에서 데이터 바인딩
  * @param {string} template - 템플릿 문자열
  * @param {Object} data - 바인딩할 데이터
  * @returns {string} 데이터가 바인딩된 HTML 문자열
  */
 export function bindTemplate(template, data) {
+  if (!template || typeof template !== "string") {
+    console.warn("bindTemplate: template is not a valid string", template);
+    return "";
+  }
+
   return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
     return data[key] !== undefined ? data[key] : match;
   });
-}
-
-/**
- * 조건부 클래스 적용
- * @param {string} baseClass - 기본 클래스
- * @param {Object} conditionalClasses - 조건부 클래스 객체
- * @returns {string} 적용된 클래스 문자열
- */
-export function applyConditionalClasses(baseClass, conditionalClasses) {
-  const classes = [baseClass];
-  Object.entries(conditionalClasses).forEach(([className, condition]) => {
-    if (condition) {
-      classes.push(className);
-    }
-  });
-  return classes.join(" ");
 }
 
 /**
