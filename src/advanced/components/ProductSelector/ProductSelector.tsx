@@ -1,35 +1,34 @@
 import React, { memo, useCallback } from "react";
 import { CSS_CLASSES, MESSAGES } from "../../constants";
-import { useAppContext } from "../../context/AppContext";
+import { useCart } from "../../hooks/useCart";
+import { useProduct } from "../../hooks/useProduct";
+import type { Product } from "../../types";
 
 const ProductSelector: React.FC = () => {
-  const { state, dispatch } = useAppContext();
+  const { products, selectedProduct, selectProduct } = useProduct();
+  const { addToCart } = useCart();
 
   const handleProductSelect = useCallback(
     (event: React.ChangeEvent<HTMLSelectElement>) => {
       const productId = event.target.value;
       if (productId) {
-        dispatch({ type: "SELECT_PRODUCT", payload: { productId } });
+        selectProduct(productId);
       }
     },
-    [dispatch],
+    [selectProduct],
   );
 
   const handleAddToCart = useCallback(() => {
-    const selectedProduct = state.productList.find((p) => p.id === state.uiState.selectedProductId);
-    if (selectedProduct && selectedProduct.q > 0) {
-      dispatch({
-        type: "ADD_TO_CART",
-        payload: { productId: selectedProduct.id, quantity: 1 },
-      });
+    if (selectedProduct) {
+      addToCart(selectedProduct.id, 1);
     }
-  }, [state.uiState.selectedProductId, state.productList, dispatch]);
+  }, [selectedProduct, addToCart]);
 
   const getStockStatus = () => {
     // main.original.js와 동일하게 모든 재고 부족/품절 상품 정보 표시
     let infoMsg = "";
 
-    state.productList.forEach((item) => {
+    products.forEach((item) => {
       if (item.q < 5) {
         if (item.q > 0) {
           infoMsg += `${item.name}: ${MESSAGES.LOW_STOCK_WARNING} (${item.q}개 남음)\n`;
@@ -43,9 +42,9 @@ const ProductSelector: React.FC = () => {
   };
 
   const getButtonStyle = () => {
-    if (!state.uiState.selectedProductId) return CSS_CLASSES.ADD_BUTTON;
+    if (!selectedProduct) return CSS_CLASSES.ADD_BUTTON;
 
-    const product = state.productList.find((p) => p.id === state.uiState.selectedProductId);
+    const product = products.find((p) => p.id === selectedProduct.id);
     if (!product) return CSS_CLASSES.ADD_BUTTON;
 
     // 품절 상품일 때 빨간색 스타일 적용
@@ -56,7 +55,7 @@ const ProductSelector: React.FC = () => {
     return CSS_CLASSES.ADD_BUTTON;
   };
 
-  const formatProductOption = (product: any) => {
+  const formatProductOption = (product: Product) => {
     let displayText = "";
 
     if (product.q === 0) {
@@ -81,14 +80,14 @@ const ProductSelector: React.FC = () => {
       <select
         id="product-select"
         className={CSS_CLASSES.PRODUCT_SELECT}
-        value={state.uiState.selectedProductId || ""}
+        value={selectedProduct?.id || ""}
         onChange={handleProductSelect}
         aria-label="상품을 선택하세요"
       >
         <option value="" disabled>
           상품을 선택하세요
         </option>
-        {state.productList.map((product) => (
+        {products.map((product) => (
           <option key={product.id} value={product.id} disabled={product.q === 0}>
             {formatProductOption(product)}
           </option>
@@ -99,7 +98,7 @@ const ProductSelector: React.FC = () => {
         id="add-to-cart"
         className={getButtonStyle()}
         onClick={handleAddToCart}
-        disabled={!state.uiState.selectedProductId}
+        disabled={!selectedProduct}
       >
         Add to Cart
       </button>

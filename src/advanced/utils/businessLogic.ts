@@ -115,7 +115,6 @@ export const calculateBasePoints = (
  */
 export const calculateSetBonusPoints = (
   cartItems: CartItem[],
-  productList: Product[],
   setBonuses: Record<string, number>,
 ): number => {
   const itemIds = cartItems.map((item) => item.id);
@@ -307,7 +306,7 @@ export const calculateCartTotals = (
     isTuesday,
     TUESDAY_POINTS_MULTIPLIER,
   );
-  const setBonus = calculateSetBonusPoints(cartItems, productList, {
+  const setBonus = calculateSetBonusPoints(cartItems, {
     "keyboard-mouse": SET_BONUS_POINTS,
     "full-set": FULL_SET_BONUS_POINTS,
   });
@@ -342,11 +341,7 @@ export const calculateCartTotals = (
 /**
  * 포인트 상세 정보 계산
  */
-export const calculatePointsDetails = (
-  cartItems: CartItem[],
-  productList: Product[],
-  totalAmount: number,
-): string[] => {
+export const calculatePointsDetails = (cartItems: CartItem[], totalAmount: number): string[] => {
   const details: string[] = [];
   const today = new Date();
   const isTuesday = today.getDay() === DAYS_OF_WEEK.TUESDAY;

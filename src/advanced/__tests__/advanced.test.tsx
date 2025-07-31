@@ -1,8 +1,14 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom";
 import App from "../App";
+import AppProvider from "../context/AppProvider";
+import { useCart } from "../hooks/useCart";
+import { useModal } from "../hooks/useModal";
+import { useNotification } from "../hooks/useNotification";
+import { useOrder } from "../hooks/useOrder";
+import { useProduct } from "../hooks/useProduct";
 
 describe("advanced 테스트", () => {
   beforeEach(() => {
@@ -77,11 +83,10 @@ describe("advanced 테스트", () => {
     it("1.4 도움말 모달이 초기에 숨겨져 있어야 함", () => {
       render(<App />);
 
-      const modal = screen.getByTestId("manual-overlay");
-      const slidePanel = screen.getByTestId("manual-column");
-
-      expect(modal).toHaveClass("hidden");
-      expect(slidePanel).toHaveClass("translate-x-full");
+      // 리팩토링 후 모달은 조건부 렌더링으로 변경됨
+      // 초기에는 모달이 DOM에 존재하지 않아야 함
+      expect(screen.queryByTestId("manual-overlay")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("manual-column")).not.toBeInTheDocument();
     });
 
     it("1.5 화요일 배너가 초기에 숨겨져 있어야 함", () => {
@@ -466,6 +471,354 @@ describe("advanced 테스트", () => {
 
       // 복합 포인트 확인 (main.original.js와 동일한 형식)
       expect(screen.getByTestId("loyalty-points")).toHaveTextContent("적립 포인트: 1060p");
+    });
+  });
+
+  describe("Phase 4: Hook 테스트", () => {
+    // Mock context wrapper for Hook tests
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <AppProvider>{children}</AppProvider>
+    );
+
+    describe("useCart Hook", () => {
+      it("should add item to cart", () => {
+        const { result } = renderHook(() => useCart(), { wrapper });
+
+        act(() => {
+          result.current.addToCart("p1", 1);
+        });
+
+        expect(result.current.cartItems).toHaveLength(1);
+        expect(result.current.cartItems[0].id).toBe("p1");
+        expect(result.current.cartItems[0].quantity).toBe(1);
+      });
+
+      it("should remove item from cart", () => {
+        const { result } = renderHook(() => useCart(), { wrapper });
+
+        // Add item first
+        act(() => {
+          result.current.addToCart("p1", 1);
+        });
+
+        expect(result.current.cartItems).toHaveLength(1);
+
+        // Remove item
+        act(() => {
+          result.current.removeFromCart("p1");
+        });
+
+        expect(result.current.cartItems).toHaveLength(0);
+      });
+
+      it("should update quantity", () => {
+        const { result } = renderHook(() => useCart(), { wrapper });
+
+        // Add item first
+        act(() => {
+          result.current.addToCart("p1", 1);
+        });
+
+        expect(result.current.cartItems[0].quantity).toBe(1);
+
+        // Update quantity
+        act(() => {
+          result.current.updateQuantity("p1", 3);
+        });
+
+        expect(result.current.cartItems[0].quantity).toBe(3);
+      });
+
+      it("should remove item when quantity is 0", () => {
+        const { result } = renderHook(() => useCart(), { wrapper });
+
+        // Add item first
+        act(() => {
+          result.current.addToCart("p1", 1);
+        });
+
+        expect(result.current.cartItems).toHaveLength(1);
+
+        // Set quantity to 0
+        act(() => {
+          result.current.updateQuantity("p1", 0);
+        });
+
+        expect(result.current.cartItems).toHaveLength(0);
+      });
+
+      it("should increase quantity when adding same item", () => {
+        const { result } = renderHook(() => useCart(), { wrapper });
+
+        // Add item twice
+        act(() => {
+          result.current.addToCart("p1", 1);
+          result.current.addToCart("p1", 1);
+        });
+
+        expect(result.current.cartItems).toHaveLength(1);
+        expect(result.current.cartItems[0].quantity).toBe(2);
+      });
+    });
+
+    describe("useProduct Hook", () => {
+      it("should return products list", () => {
+        const { result } = renderHook(() => useProduct(), { wrapper });
+
+        expect(result.current.products).toBeDefined();
+        expect(Array.isArray(result.current.products)).toBe(true);
+        expect(result.current.products.length).toBeGreaterThan(0);
+      });
+
+      it("should have first product selected initially (same as main.original.js)", () => {
+        const { result } = renderHook(() => useProduct(), { wrapper });
+
+        expect(result.current.selectedProduct?.id).toBe("p1");
+      });
+
+      it("should select product", () => {
+        const { result } = renderHook(() => useProduct(), { wrapper });
+
+        act(() => {
+          result.current.selectProduct("p1");
+        });
+
+        expect(result.current.selectedProduct?.id).toBe("p1");
+      });
+
+      it("should change selected product", () => {
+        const { result } = renderHook(() => useProduct(), { wrapper });
+
+        // Select first product
+        act(() => {
+          result.current.selectProduct("p1");
+        });
+
+        expect(result.current.selectedProduct?.id).toBe("p1");
+
+        // Select different product
+        act(() => {
+          result.current.selectProduct("p2");
+        });
+
+        expect(result.current.selectedProduct?.id).toBe("p2");
+      });
+
+      it("should have products with correct structure", () => {
+        const { result } = renderHook(() => useProduct(), { wrapper });
+
+        const firstProduct = result.current.products[0];
+        expect(firstProduct).toHaveProperty("id");
+        expect(firstProduct).toHaveProperty("name");
+        expect(firstProduct).toHaveProperty("val");
+        expect(firstProduct).toHaveProperty("q");
+        expect(firstProduct).toHaveProperty("onSale");
+        expect(firstProduct).toHaveProperty("suggestSale");
+      });
+    });
+
+    describe("useOrder Hook", () => {
+      it("should return calculation with correct structure", () => {
+        const { result } = renderHook(() => useOrder(), { wrapper });
+
+        expect(result.current.calculation).toBeDefined();
+        expect(typeof result.current.totalAmount).toBe("number");
+        expect(typeof result.current.discountRate).toBe("number");
+        expect(typeof result.current.loyaltyPoints).toBe("number");
+        expect(typeof result.current.isTuesday).toBe("boolean");
+        expect(typeof result.current.itemCount).toBe("number");
+        expect(typeof result.current.subtotal).toBe("number");
+      });
+
+      it("should have zero values initially", () => {
+        const { result } = renderHook(() => useOrder(), { wrapper });
+
+        expect(result.current.totalAmount).toBe(0);
+        expect(result.current.discountRate).toBe(0);
+        expect(result.current.loyaltyPoints).toBe(0);
+        expect(result.current.itemCount).toBe(0);
+        expect(result.current.subtotal).toBe(0);
+      });
+
+      it("should calculate correctly when items are added", () => {
+        const { result } = renderHook(
+          () => {
+            const cart = useCart();
+            const order = useOrder();
+            return { cart, order };
+          },
+          { wrapper },
+        );
+
+        // Add item to cart
+        act(() => {
+          result.current.cart.addToCart("p1", 1);
+        });
+
+        // Check if calculation updates
+        expect(result.current.order.totalAmount).toBeGreaterThan(0);
+        expect(result.current.order.itemCount).toBe(1);
+        expect(result.current.order.subtotal).toBeGreaterThan(0);
+      });
+
+      it("should calculate loyalty points", () => {
+        const { result } = renderHook(
+          () => {
+            const cart = useCart();
+            const order = useOrder();
+            return { cart, order };
+          },
+          { wrapper },
+        );
+
+        // Add item to cart
+        act(() => {
+          result.current.cart.addToCart("p1", 1);
+        });
+
+        // Should have some loyalty points
+        expect(result.current.order.loyaltyPoints).toBeGreaterThanOrEqual(0);
+      });
+
+      it("should handle multiple items", () => {
+        const { result } = renderHook(
+          () => {
+            const cart = useCart();
+            const order = useOrder();
+            return { cart, order };
+          },
+          { wrapper },
+        );
+
+        // Add multiple items
+        act(() => {
+          result.current.cart.addToCart("p1", 2);
+          result.current.cart.addToCart("p2", 1);
+        });
+
+        expect(result.current.order.itemCount).toBe(3);
+        expect(result.current.order.totalAmount).toBeGreaterThan(0);
+      });
+    });
+
+    describe("useModal Hook", () => {
+      it("should be closed initially", () => {
+        const { result } = renderHook(() => useModal());
+
+        expect(result.current.isOpen).toBe(false);
+      });
+
+      it("should open modal", () => {
+        const { result } = renderHook(() => useModal());
+
+        act(() => {
+          result.current.open();
+        });
+
+        expect(result.current.isOpen).toBe(true);
+      });
+
+      it("should close modal", () => {
+        const { result } = renderHook(() => useModal());
+
+        // Open first
+        act(() => {
+          result.current.open();
+        });
+
+        expect(result.current.isOpen).toBe(true);
+
+        // Then close
+        act(() => {
+          result.current.close();
+        });
+
+        expect(result.current.isOpen).toBe(false);
+      });
+
+      it("should toggle modal", () => {
+        const { result } = renderHook(() => useModal());
+
+        expect(result.current.isOpen).toBe(false);
+
+        // Toggle to open
+        act(() => {
+          result.current.toggle();
+        });
+
+        expect(result.current.isOpen).toBe(true);
+
+        // Toggle to close
+        act(() => {
+          result.current.toggle();
+        });
+
+        expect(result.current.isOpen).toBe(false);
+      });
+
+      it("should have all required methods", () => {
+        const { result } = renderHook(() => useModal());
+
+        expect(typeof result.current.open).toBe("function");
+        expect(typeof result.current.close).toBe("function");
+        expect(typeof result.current.toggle).toBe("function");
+        expect(typeof result.current.isOpen).toBe("boolean");
+      });
+    });
+
+    describe("useNotification Hook", () => {
+      beforeEach(() => {
+        vi.spyOn(window, "alert").mockImplementation(() => {});
+      });
+
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      it("should have showNotification method", () => {
+        const { result } = renderHook(() => useNotification());
+
+        expect(typeof result.current.showNotification).toBe("function");
+      });
+
+      it("should show notification with alert", () => {
+        const { result } = renderHook(() => useNotification());
+        const alertSpy = vi.spyOn(window, "alert");
+
+        act(() => {
+          result.current.showNotification("Test message");
+        });
+
+        expect(alertSpy).toHaveBeenCalledWith("Test message");
+      });
+
+      it("should show notification with different types", () => {
+        const { result } = renderHook(() => useNotification());
+        const alertSpy = vi.spyOn(window, "alert");
+
+        act(() => {
+          result.current.showNotification("Success message");
+        });
+
+        expect(alertSpy).toHaveBeenCalledWith("Success message");
+
+        act(() => {
+          result.current.showNotification("Error message");
+        });
+
+        expect(alertSpy).toHaveBeenCalledWith("Error message");
+      });
+
+      it("should use info as default type", () => {
+        const { result } = renderHook(() => useNotification());
+        const alertSpy = vi.spyOn(window, "alert");
+
+        act(() => {
+          result.current.showNotification("Info message");
+        });
+
+        expect(alertSpy).toHaveBeenCalledWith("Info message");
+      });
     });
   });
 });

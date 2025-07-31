@@ -71,30 +71,11 @@ export interface UIState {
 }
 
 /**
- * 앱 상태 타입
+ * 도움말 모달 상태 타입
  */
-export interface AppState {
-  productList: Product[]; // 상품 목록
-  cartItems: CartItem[]; // 장바구니 아이템들
-  totalAmount: number; // 총 결제 금액
-  itemCount: number; // 총 아이템 수
-  lastSelectedProduct: string | null; // 마지막 선택된 상품
-  uiState: UIState;
+export interface HelpModalState {
+  isOpen: boolean;
 }
-
-/**
- * 액션 결과 타입
- */
-export interface ActionResult {
-  success: boolean; // 성공 여부
-  newState: AppState; // 새로운 상태
-  error: Error | null; // 에러 객체
-}
-
-/**
- * 프로모션 타입
- */
-export type PromotionType = "lightning" | "suggest" | "super";
 
 /**
  * 할인율 설정 타입
@@ -122,81 +103,89 @@ export interface CalculationOptions {
 }
 
 /**
- * 액션 타입
- */
-export type AppAction =
-  | { type: "ADD_TO_CART"; payload: { productId: string; quantity: number } }
-  | { type: "REMOVE_FROM_CART"; payload: { productId: string } }
-  | { type: "UPDATE_QUANTITY"; payload: { productId: string; quantity: number } }
-  | { type: "SELECT_PRODUCT"; payload: { productId: string } }
-  | { type: "UPDATE_UI_STATE"; payload: Partial<UIState> }
-  | { type: "RESET_CART" }
-  | { type: "UPDATE_PROMOTIONS"; payload: { promotions: PromotionType[] } }
-  | { type: "APPLY_LIGHTNING_SALE"; payload: { productId: string; discountedPrice: number } }
-  | { type: "APPLY_SUGGEST_SALE"; payload: { productId: string; discountedPrice: number } };
-
-/**
  * 타입 검증 함수들
  */
-export function isValidProduct(product: any): product is Product {
+export function isValidProduct(product: unknown): product is Product {
+  if (!product || typeof product !== "object" || product === null) {
+    return false;
+  }
+
+  const p = product as Record<string, unknown>;
+
   return (
-    product &&
-    typeof product.id === "string" &&
-    typeof product.name === "string" &&
-    typeof product.val === "number" &&
-    typeof product.originalVal === "number" &&
-    typeof product.q === "number" &&
-    typeof product.onSale === "boolean" &&
-    typeof product.suggestSale === "boolean"
+    "id" in p &&
+    "name" in p &&
+    "val" in p &&
+    "originalVal" in p &&
+    "q" in p &&
+    "onSale" in p &&
+    "suggestSale" in p &&
+    typeof p.id === "string" &&
+    typeof p.name === "string" &&
+    typeof p.val === "number" &&
+    typeof p.originalVal === "number" &&
+    typeof p.q === "number" &&
+    typeof p.onSale === "boolean" &&
+    typeof p.suggestSale === "boolean"
   );
 }
 
-export function isValidCartItem(item: any): item is CartItem {
+export function isValidCartItem(item: unknown): item is CartItem {
+  if (!item || typeof item !== "object" || item === null) {
+    return false;
+  }
+
+  const i = item as Record<string, unknown>;
+
   return (
-    item &&
-    typeof item.id === "string" &&
-    typeof item.name === "string" &&
-    typeof item.price === "number" &&
-    typeof item.originalPrice === "number" &&
-    typeof item.quantity === "number" &&
-    typeof item.onSale === "boolean" &&
-    typeof item.suggestSale === "boolean"
+    "id" in i &&
+    "name" in i &&
+    "price" in i &&
+    "originalPrice" in i &&
+    "quantity" in i &&
+    "onSale" in i &&
+    "suggestSale" in i &&
+    typeof i.id === "string" &&
+    typeof i.name === "string" &&
+    typeof i.price === "number" &&
+    typeof i.originalPrice === "number" &&
+    typeof i.quantity === "number" &&
+    typeof i.onSale === "boolean" &&
+    typeof i.suggestSale === "boolean"
   );
 }
 
-export function isValidAppState(state: any): state is AppState {
-  return (
-    state &&
-    Array.isArray(state.productList) &&
-    Array.isArray(state.cartItems) &&
-    typeof state.totalAmount === "number" &&
-    typeof state.itemCount === "number" &&
-    (state.lastSelectedProduct === null || typeof state.lastSelectedProduct === "string") &&
-    state.uiState &&
-    typeof state.uiState.selectedProductId === "string" &&
-    typeof state.uiState.isTuesday === "boolean" &&
-    typeof state.uiState.showTuesdayBanner === "boolean" &&
-    typeof state.uiState.showDiscountInfo === "boolean" &&
-    typeof state.uiState.discountRate === "number" &&
-    typeof state.uiState.savedAmount === "number" &&
-    typeof state.uiState.loyaltyPoints === "number" &&
-    Array.isArray(state.uiState.pointsDetail)
-  );
-}
+export function isValidCalculationResult(result: unknown): result is CalculationResult {
+  if (!result || typeof result !== "object" || result === null) {
+    return false;
+  }
 
-export function isValidCalculationResult(result: any): result is CalculationResult {
+  const r = result as Record<string, unknown>;
+
   return (
-    result &&
-    typeof result.subtotal === "number" &&
-    typeof result.totalAmount === "number" &&
-    typeof result.itemCount === "number" &&
-    typeof result.discountRate === "number" &&
-    Array.isArray(result.itemDiscounts) &&
-    typeof result.isTuesday === "boolean" &&
-    result.points &&
-    typeof result.points.base === "number" &&
-    typeof result.points.setBonus === "number" &&
-    typeof result.points.quantityBonus === "number" &&
-    typeof result.points.total === "number"
+    "subtotal" in r &&
+    "totalAmount" in r &&
+    "itemCount" in r &&
+    "discountRate" in r &&
+    "itemDiscounts" in r &&
+    "isTuesday" in r &&
+    "points" in r &&
+    typeof r.subtotal === "number" &&
+    typeof r.totalAmount === "number" &&
+    typeof r.itemCount === "number" &&
+    typeof r.discountRate === "number" &&
+    Array.isArray(r.itemDiscounts) &&
+    typeof r.isTuesday === "boolean" &&
+    r.points &&
+    typeof r.points === "object" &&
+    r.points !== null &&
+    "base" in r.points &&
+    "setBonus" in r.points &&
+    "quantityBonus" in r.points &&
+    "total" in r.points &&
+    typeof (r.points as PointsInfo).base === "number" &&
+    typeof (r.points as PointsInfo).setBonus === "number" &&
+    typeof (r.points as PointsInfo).quantityBonus === "number" &&
+    typeof (r.points as PointsInfo).total === "number"
   );
 }
